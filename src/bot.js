@@ -1,8 +1,12 @@
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
 const Database = require('./utils/database');
+
+console.log('🔍 Token:', process.env.DISCORD_TOKEN ? '✅ Carregado' : '❌ Não encontrado');
+console.log('🔍 Guild ID:', process.env.GUILD_ID || '❌ Não encontrado');
 
 const client = new Client({
   intents: [
@@ -44,6 +48,11 @@ for (const file of eventFiles) {
 }
 
 // Login
+if (!process.env.DISCORD_TOKEN) {
+  console.error('❌ ERRO: Token do Discord não encontrado no .env');
+  process.exit(1);
+}
+
 client.login(process.env.DISCORD_TOKEN);
 
 module.exports = client;
