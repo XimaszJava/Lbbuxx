@@ -19,14 +19,95 @@ class Database {
   }
 
   initializeDatabase() {
-    const schema = fs.readFileSync(path.join(__dirname, '../database/schema.sql'), 'utf8');
+    // Schema SQL diretamente no código (sem arquivo externo)
+    const schema = `
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        discord_id TEXT UNIQUE NOT NULL,
+        username TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS tickets (
+        id TEXT PRIMARY KEY,
+        ticket_number INTEGER UNIQUE,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('compra', 'pergunta', 'suporte')),
+        description TEXT NOT NULL,
+        status TEXT DEFAULT 'aberto' CHECK(status IN ('aberto', 'em_progresso', 'fechado', 'cancelado')),
+        priority TEXT DEFAULT 'normal' CHECK(priority IN ('baixa', 'normal', 'alta', 'urgente')),
+        channel_id TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        closed_at DATETIME,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS pix_payments (
+        id TEXT PRIMARY KEY,
+        ticket_id TEXT,
+        user_id TEXT NOT NULL,
+        amount DECIMAL(10, 2) NOT NULL,
+        description TEXT,
+        pix_key TEXT,
+        qr_code TEXT,
+        status TEXT DEFAULT 'pendente' CHECK(status IN ('pendente', 'pago', 'cancelado', 'expirado')),
+        payment_method TEXT DEFAULT 'pix',
+        transaction_id TEXT UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        paid_at DATETIME,
+        expires_at DATETIME,
+        FOREIGN KEY(ticket_id) REFERENCES tickets(id),
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS ticket_messages (
+        id TEXT PRIMARY KEY,
+        ticket_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(ticket_id) REFERENCES tickets(id),
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS server_config (
+        guild_id TEXT PRIMARY KEY,
+        ticket_category_id TEXT,
+        log_channel_id TEXT,
+        prefix TEXT DEFAULT '/',
+        auto_close_days INTEGER DEFAULT 7,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS logs (
+        id TEXT PRIMARY KEY,
+        action TEXT NOT NULL,
+        user_id TEXT,
+        details TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_tickets_user_id ON tickets(user_id);
+      CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
+      CREATE INDEX IF NOT EXISTS idx_pix_payments_user_id ON pix_payments(user_id);
+      CREATE INDEX IF NOT EXISTS idx_pix_payments_status ON pix_payments(status);
+      CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket_id ON ticket_messages(ticket_id);
+    `;
+
     const statements = schema.split(';').filter(s => s.trim());
     
-    statements.forEach(statement => {
+    statements.forEach((statement) => {
       this.db.run(statement + ';', (err) => {
-        if (err) console.error('Database error:', err);
+        if (err && !err.message.includes('already exists')) {
+          console.error('Database error:', err);
+        }
       });
     });
+    
+    console.log('✅ Banco de dados inicializado!');
   }
 
   // Usuários
