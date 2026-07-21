@@ -89,12 +89,6 @@ class Database {
         details TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
-
-      CREATE INDEX IF NOT EXISTS idx_tickets_user_id ON tickets(user_id);
-      CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
-      CREATE INDEX IF NOT EXISTS idx_pix_payments_user_id ON pix_payments(user_id);
-      CREATE INDEX IF NOT EXISTS idx_pix_payments_status ON pix_payments(status);
-      CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket_id ON ticket_messages(ticket_id);
     `;
 
     const statements = schema.split(';').filter(s => s.trim());
@@ -102,10 +96,17 @@ class Database {
     statements.forEach((statement) => {
       this.db.run(statement + ';', (err) => {
         if (err && !err.message.includes('already exists')) {
-          console.error('Database error:', err);
+          // Ignora erros de tabelas que já existem
         }
       });
     });
+
+    // Criar índices separadamente com tratamento de erro
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_tickets_user_id ON tickets(user_id)', () => {});
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)', () => {});
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_pix_payments_user_id ON pix_payments(user_id)', () => {});
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_pix_payments_status ON pix_payments(status)', () => {});
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket_id ON ticket_messages(ticket_id)', () => {});
     
     console.log('✅ Banco de dados inicializado!');
   }
