@@ -1,35 +1,22 @@
-const { Events, REST, Routes } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { InteractionType } = require('discord.js');
 
 module.exports = {
-  name: Events.ClientReady,
-  once: true,
-  async execute(client) {
-    try {
-      const commands = [];
-      const commandsPath = path.join(__dirname, '../commands');
-      const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+  name: 'interactionCreate',
+  async execute(interaction, client) {
+    // Comandos slash
+    if (interaction.isChatInputCommand()) {
+      const command = client.commands.get(interaction.commandName);
+      if (!command) return;
 
-      for (const file of commandFiles) {
-        const command = require(path.join(commandsPath, file));
-        if ('data' in command && 'execute' in command) {
-          commands.push(command.data.toJSON());
-        }
+      try {
+        await command.execute(interaction);
+      } catch (error) {
+        console.error('Erro ao executar comando:', error);
+        await interaction.reply({
+          content: '❌ Erro ao executar comando.',
+          ephemeral: true
+        });
       }
-
-      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-
-      console.log(`Registrando ${commands.length} comando(s)...`);
-
-      const data = await rest.put(
-        Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID),
-        { body: commands }
-      );
-
-      console.log(`✅ ${data.length} comando(s) registrado(s)!`);
-    } catch (error) {
-      console.error('Erro ao registrar comandos:', error);
     }
   },
 };
